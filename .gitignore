@@ -1,0 +1,26 @@
+# Ignore local .terraform directories
+**/.terraform/*
+
+# Ignore .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Ignore crash log files
+crash.log
+
+# Ignore .tfvars files that are used to override default Terraform variable values
+*.tfvars
+
+# Ignore override files as they are usually used to override resources locally and do not need to be checked in
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore CLI configuration files
+.terraformrc
+terraform.rc
+
+# Ignore Terraform provider executable file
+terraform-provider-aws_v5.48.0_x5.exe
+
