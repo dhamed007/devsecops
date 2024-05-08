@@ -1,47 +1,33 @@
-from flask import Flask, jsonify, request
-import requests
-import pandas as pd
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
+from flask import Flask, render_template, request, jsonify
+import city_search.cities as cities
+import open_meteo.client as client
+import visualisation.plotter as plotter
 
-app = Flask(__name__)
+app = Flask(__name__,
+            static_url_path='', 
+            static_folder='templates/static',
+            template_folder='templates')
 
-# Open-Meteo API client setup
-openmeteo = openmeteo_requests.Client(session=requests.Session())
+@app.route('/', methods=['GET'])
+def index():
+    return render_template('index.html')
 
-@app.route('/weather')
-def get_weather():
-    location = request.args.get('location')
-    if not location:
-        return jsonify({'error': 'Location parameter is required'}), 400
+@app.route('/generate_report', methods=['GET'])
+def generate_report():
+    lat = request.args['lat']
+    lng = request.args['lng']
+    report = "current"
+    if 'report' in request.args:
+        report = request.args['report']
+    city = cities.find_city(lat,lng)
+    current = report == "current"
+    title = "Forecast" if current else "10-day Historical data"
+    response = client.get_weather(city["lat"], city["lng"], current)
+    script, div = plotter.get_plot(response, current)
+    return render_template('report.html', city=city, script=script, div=div, title=title)
 
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {
-        "location": location,
-        "hourly": "temperature_2m"
-    }
-
-    try:
-        responses = openmeteo.weather_api(url, params=params)
-        response = responses[0]  # Assuming you want the first response
-        hourly = response.Hourly()
-        hourly_temperature_2m = hourly.Variables(0).ValuesAsNumpy()
-
-        hourly_data = {
-            "date": pd.date_range(
-                start=pd.to_datetime(hourly.Time(), unit="s", utc=True),
-                end=pd.to_datetime(hourly.TimeEnd(), unit="s", utc=True),
-                freq=pd.Timedelta(seconds=hourly.Interval()),
-                inclusive="left"
-            ).tolist(),
-            "temperature_2m": hourly_temperature_2m.tolist()
-        }
-
-        return jsonify(hourly_data)
-
-    except Exception as e:
-        return jsonify({'error': f'Failed to fetch weather data: {str(e)}'}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+@app.route('/autocomplete', methods=['GET'])
+def find_cities():
+    name = request.args.get('name')
+    results = cities.find_city_incomplete(name)
+    return jsonify(results)
