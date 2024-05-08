@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 import requests
 import pandas as pd
 import openmeteo_requests
+import requests_cache
+from retry_requests import retry
 
 app = Flask(__name__)
 
